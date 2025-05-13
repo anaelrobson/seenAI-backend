@@ -5,7 +5,7 @@ import fetch from "node-fetch";
 import FormData from "form-data";
 import dotenv from "dotenv";
 
-// Load environment variables from Replit secrets or a local .env file
+// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -14,26 +14,41 @@ app.use(bodyParser.json());
 
 const OPENAI_KEY = process.env.OPENAI_KEY;
 
-// ✅ Root route (for sanity check)
+// ✅ Root check
 app.get("/", (req, res) => {
   res.send("Whisper backend is running.");
 });
 
-// ✅ Transcription endpoint
+// ✅ Transcription route
 app.post("/transcribe", async (req, res) => {
   const { videoUrl } = req.body;
+  console.log("Received video URL:", videoUrl);
 
   try {
+    // Download the video
     const videoRes = await fetch(videoUrl);
     const videoBuffer = await videoRes.buffer();
+    console.log("✅ Video downloaded. Size:", (videoBuffer.length / (1024 * 1024)).toFixed(2), "MB");
+
+    // Dynamically get extension + MIME type
+    const extension = videoUrl.split('.').pop()?.toLowerCase() || "mp4";
+    const mimeType = {
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+      webm: "video/webm",
+      m4a: "audio/mp4",
+      mp3: "audio/mpeg",
+    }[extension] || "video/mp4";
 
     const formData = new FormData();
     formData.append("file", videoBuffer, {
-      filename: "upload.webm",
-      contentType: "video/webm",
+      filename: `upload.${extension}`,
+      contentType: mimeType,
     });
     formData.append("model", "whisper-1");
     formData.append("response_format", "text");
+
+    console.log("📡 Sending request to Whisper...");
 
     const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -43,10 +58,12 @@ app.post("/transcribe", async (req, res) => {
       body: formData,
     });
 
-    const result = await whisperRes.text();
-    res.status(200).json({ transcription: result });
+    const resultText = await whisperRes.text();
+    console.log("✅ Transcription received!");
+
+    res.status(200).json({ transcription: resultText });
   } catch (err) {
-    console.error("Transcription failed:", err);
+    console.error("❌ Transcription failed:", err);
     res.status(500).json({ error: "Transcription failed" });
   }
 });
@@ -54,5 +71,5 @@ app.post("/transcribe", async (req, res) => {
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Whisper backend running on port ${PORT}`);
+  console.log(`🚀 Whisper backend running on port ${PORT}`);
 });
