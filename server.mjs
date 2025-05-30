@@ -13,7 +13,13 @@ import { v4 as uuidv4 } from "uuid";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: ["https://seen-ai.com", "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
 app.use(bodyParser.json());
 
 const OPENAI_KEY = process.env.OPENAI_KEY;
